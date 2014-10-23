@@ -16,6 +16,10 @@ Category:            Web
 Build-type:          Simple
 Cabal-version:       >=1.2
 
+Flag network-uri
+  Description: Get Network.URI from the network-uri package
+  Default: True
+
 Executable hpaste
   Main-is:           Main.hs
   Ghc-options:       -threaded -Wall -O2 -fno-warn-name-shadowing
@@ -116,7 +120,6 @@ Executable hpaste
    ,hlint
    ,hscolour
    ,mtl
-   ,network
    ,old-locale
    ,safe
    ,snap-core
@@ -129,3 +132,9 @@ Executable hpaste
    ,cgi
    ,process
    ,postgresql-simple
+  if flag(network-uri)
+    Build-depends: network-uri >= 2.6
+                  ,network >= 2.6
+  else
+    Build-depends: network-uri < 2.6
+                  ,network < 2.6
