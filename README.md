@@ -1,3 +1,11 @@
+# hpaste
+
+The codebase for http://lpaste.org/
+
+## Build
+
+    $ stack build
+
 ## Database setup
 
     $ sudo su postgres --command 'createuser hpaste -P'
@@ -9,6 +17,5 @@
     $ cp hpaste.conf.sample hpaste.conf
 
 Edit hpaste.conf.
- 
-    $ dist/build/hpaste/hpaste hpaste.conf
 
+    $ stack exec hpaste hpaste.conf
