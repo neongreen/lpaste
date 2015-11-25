@@ -15,7 +15,6 @@ import Data.Text.Lazy        (pack)
 import Data.Time
 import Network.Curl.Download
 import Snap.App.Types
-import System.Locale
 import Text.Feed.Query
 
 -- | Get commits of this project from a commit feed.

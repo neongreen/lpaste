@@ -148,6 +148,6 @@ navDirection uri Pagination{..} change caption = do
   	      		     (show (pnCurrentPage + change))
 			     uri
 
--- | Migration function.
-preEscapedString :: String -> Markup
-preEscapedString = preEscapedToMarkup
+-- -- | Migration function.
+-- preEscapedString :: String -> Markup
+-- preEscapedString = preEscapedToMarkup

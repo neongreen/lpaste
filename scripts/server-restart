@@ -5,4 +5,4 @@ echo 'Killing ...'
 killall hpaste
 sleep 0.2
 echo 'Starting ...'
-dist/build/hpaste/hpaste hpaste.conf & disown
+/home/chris/.local/bin/hpaste hpaste.conf & disown

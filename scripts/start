@@ -1,4 +1,4 @@
 #! /bin/bash
 cd /home/chris/hpaste/
 mkdir log -p
-dist/build/hpaste/hpaste hpaste.conf
+/home/chris/.local/bin/hpaste hpaste.conf

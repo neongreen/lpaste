@@ -210,7 +210,7 @@ announcePaste ptype channel PasteSubmit{..} pid = do
 -- | Is a nickname valid? Digit/letter or one of these: -_/\\;()[]{}?`'
 validNick :: String -> Bool
 validNick s = first && all ok s && length s > 0 where
-  ok c = isDigit c || isLetter c || elem c "-_/\\;()[]{}?`'"
+  ok c = isDigit c || isLetter c || elem c ("-_/\\;()[]{}?`'" :: String)
   first = all (\c -> isDigit c || isLetter c) $ take 1 s
 
 -- | Get hints for a Haskell paste from hlint.

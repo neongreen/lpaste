@@ -41,7 +41,7 @@ highlightPaste langs Paste{..} =
          | languageName == "literatehaskell" ->
            birdStyle pastePaste
          | elem languageName ["haskell","agda","idris","elm"] ->
-          preEscapedString $ hscolour False (unpack pastePaste)
+          preEscapedString $ hscolour False 1 (unpack pastePaste)
         Just (Language{..}) ->
           pre $ code ! A.class_ (toValue $ "language-" ++ lang) $
             toHtml pastePaste
@@ -55,7 +55,7 @@ highlightPaste langs Paste{..} =
 highlightHaskell :: Text -> Html
 highlightHaskell paste =
   H.table ! aClass "code" $
-    td $ preEscapedString $ hscolour False (unpack paste)
+    td $ preEscapedString $ hscolour False 1 (unpack paste)
 
 birdStyle :: Text -> Html
 birdStyle = collect mempty (Right []) . map T.unpack . T.lines where
@@ -71,7 +71,7 @@ birdStyle = collect mempty (Right []) . map T.unpack . T.lines where
     case acc of
       Right hslines -> doc <> highlight hslines
       Left text -> doc <> plaintext text
-  highlight = preEscapedString . beaks . hscolour False
+  highlight = preEscapedString . beaks . hscolour False 1
   plaintext = pre . toHtml
   dropSpace (' ':xs) = xs
   dropSpace xs = xs
