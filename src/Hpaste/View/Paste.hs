@@ -44,9 +44,11 @@ import           Text.Formlet
 
 -- | Render the page page.
 page :: PastePage -> Markup
-page PastePage{ppPaste=p@Paste{..},..} =
+page PastePage{ppPaste=p,..} =
   layoutPage $ Page {
-    pageTitle = pasteTitle
+    pageTitle = case ppRevisions of
+                  (rev:_) -> pasteTitle rev
+                  _ -> pasteTitle p
   , pageBody = do viewPaste (if ppRevision then [] else ppRevisions)
     	       	  	    []
 			    ppChans
@@ -197,10 +199,13 @@ viewPaste revisions annotations chans langs (paste@Paste{..},hints) = do
 pasteDetails :: [Paste] -> [Paste] -> [Channel] -> [Language] -> Paste -> Markup
 pasteDetails revisions annotations chans langs paste =
   darkNoTitleSection $ do
+    let title = case revisions of
+                  (rev:_) -> pasteTitle rev
+                  _ -> pasteTitle paste
     h2 $ a ! A.href (toValue ("#a" ++ show (pasteId paste)))
            ! A.id (toValue ("a" ++ show (pasteId paste)))
            ! A.name (toValue ("a" ++ show (pasteId paste)))
-           $ toMarkup $ fromStrict (pasteTitle paste)
+           $ toMarkup $ fromStrict title
     pasteNav annotations paste
     ul ! aClass "paste-specs" $ do
       detail "Paste" $ do

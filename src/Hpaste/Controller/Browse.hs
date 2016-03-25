@@ -10,7 +10,7 @@ module Hpaste.Controller.Browse
 import Hpaste.Types
 import Hpaste.Model.Channel  (getChannels)
 import Hpaste.Model.Language (getLanguages)
-import Hpaste.Model.Paste    (getPaginatedPastes,countPublicPastes)
+import Hpaste.Model.Paste    (getPaginatedPastes,countPublicPastes,getRevisions)
 import Hpaste.View.Browse    (page)
 
 import Control.Monad.IO
@@ -24,7 +24,8 @@ handle = do
   pn <- getPagination "pastes"
   author <- getStringMaybe "author"
   (pn',pastes) <- model $ getPaginatedPastes author (pnPn pn)
+  revisions <- mapM (model . getRevisions . pasteId) pastes
   chans <- model getChannels
   langs <- model getLanguages
   now <- io getCurrentTime
-  output $ page now pn { pnPn = pn' } chans langs pastes author
+  output $ page now pn { pnPn = pn' } chans langs (zip pastes revisions) author
