@@ -31,7 +31,7 @@ import qualified Text.Blaze.Html5.Attributes   as A
 import           Text.Blaze.Pagination
 
 -- | Render the browse page.
-page :: UTCTime -> PN -> [Channel] -> [Language] -> [(Paste, [Paste])] -> Maybe String -> Html
+page :: UTCTime -> PN -> [Channel] -> [Language] -> [(Paste, Paste)] -> Maybe String -> Html
 page now pn chans langs ps mauthor =
   layoutPage $ Page {
     pageTitle = "Browse pastes"
@@ -40,7 +40,7 @@ page now pn chans langs ps mauthor =
   }
 
 -- | View the paginated pastes.
-browse :: UTCTime -> PN -> [Channel] -> [Language] -> [(Paste, [Paste])] -> Maybe String -> Html
+browse :: UTCTime -> PN -> [Channel] -> [Language] -> [(Paste, Paste)] -> Maybe String -> Html
 browse now pn channels languages ps mauthor = do
   darkSection title $ do
     pagination pn
@@ -50,20 +50,17 @@ browse now pn channels languages ps mauthor = do
       pastes ps
     pagination pn { pnPn = (pnPn pn) { pnShowDesc = False } }
 
-    where trueTitle paste revisions = case revisions of
-                                        (rev:_) -> pasteTitle rev
-                                        [] -> pasteTitle paste
-          pastes = mapM_ $ \(paste@Paste{..}, revisions) -> tr $ do
-                     td $ pasteLink paste (trueTitle paste revisions)
+    where pastes = mapM_ $ \(original, latest) -> tr $ do
+                     td $ pasteLink original (pasteTitle latest)
                      unless (isJust mauthor) $
                        td $ do
-			 let author = T.unpack pasteAuthor
+			 let author = T.unpack (pasteAuthor latest)
 			 if True -- validNick author
-			    then a ! hrefURI (authorUri author) $ toHtml pasteAuthor
-			    else toHtml pasteAuthor
-                     td $ ago pasteDate now
-                     td $ showLanguage languages pasteLanguage
-                     td $ showChannel Nothing channels pasteChannel
+			    then a ! hrefURI (authorUri author) $ toHtml author
+			    else toHtml author
+                     td $ ago (pasteDate original) now
+                     td $ showLanguage languages (pasteLanguage latest)
+                     td $ showChannel Nothing channels (pasteChannel latest)
           authorUri author = updateUrlParam "author" author
 	  	    	   $ updateUrlParam "pastes_page"   "0"
 			   $ pnURI pn

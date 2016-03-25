@@ -1,6 +1,7 @@
 {-# OPTIONS -Wall -fno-warn-name-shadowing #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- | Paste controller.
 
@@ -30,6 +31,7 @@ import Data.Maybe
 import Data.Monoid.Operator    ((++))
 import Data.String             (fromString)
 import Data.Text               (Text)
+import Data.Traversable        (for)
 import Prelude                 hiding ((++))
 import Safe
 import Snap.App
@@ -48,25 +50,32 @@ handle revision = do
 	      	       	    else getPasteById (pid)
         case paste of
           Nothing -> return Nothing
-          Just paste -> do
-            hints <- model $ getHints (pasteId paste)
-            annotations <- model $ getAnnotations (pid)
-            revisions <- model $ getRevisions (pid)
-            ahints <- model $ mapM (getHints.pasteId) annotations
-            rhints <- model $ mapM (getHints.pasteId) revisions
-            chans <- model $ getChannels
-            langs <- model $ getLanguages
+          Just pcOriginal -> model $ do
+            chans <- getChannels
+            langs <- getLanguages
+            pcOriginalHints  <- getHints (pasteId pcOriginal)
+            pcLatest         <- getLatestVersion pcOriginal
+            pcLatestHints    <- getHints (pasteId pcLatest)
+            pcRevisions      <- getRevisions (pasteId pcOriginal)
+            pcRevisionsHints <- mapM (getHints.pasteId) pcRevisions
+            annotations      <- getAnnotations (pasteId pcOriginal)
+            pcAnnotations    <- for annotations $ \ann -> do
+                pcOriginalHints  <- getHints (pasteId ann)
+                pcLatest         <- getLatestVersion ann
+                pcLatestHints    <- getHints (pasteId pcLatest)
+                pcRevisions      <- getRevisions (pasteId ann)
+                pcRevisionsHints <- mapM (getHints.pasteId) pcRevisions
+                return PasteContext {
+                    pcOriginal    = ann
+                  , pcAnnotations = []
+                  , .. }
             return $ Just $ page PastePage {
-              ppChans       = chans
-            , ppLangs       = langs
-            , ppAnnotations = annotations
-            , ppRevisions   = revisions
-            , ppHints       = hints
-            , ppPaste       = paste
-            , ppAnnotationHints = ahints
-            , ppRevisionsHints = rhints
-	    , ppRevision = revision
-            }
+                ppChans    = chans
+              , ppLangs    = langs
+	      , ppRevision = revision
+                -- Filling in all the pc* fields automatically
+              , ppPaste    = PasteContext {..}
+              }
       justOrGoHome html outputText
 
 -- | Control paste annotating / submission.
@@ -75,7 +84,8 @@ pasteForm channels languages defChan annotatePaste editPaste = do
   params <- getParams
   submittedPrivate <- isJust <$> getParam "private"
   submittedPublic <- isJust <$> getParam "public"
-  revisions <- maybe (return []) (model . getRevisions) (fmap pasteId (annotatePaste <|> editPaste))
+  mbPaste <- traverse (model . getLatestVersion)
+                      (annotatePaste <|> editPaste)
   let formlet = PasteFormlet {
           pfSubmitted = submittedPrivate || submittedPublic
         , pfErrors    = []
@@ -85,7 +95,7 @@ pasteForm channels languages defChan annotatePaste editPaste = do
         , pfDefChan   = defChan
         , pfAnnotatePaste = annotatePaste
         , pfEditPaste = editPaste
-	, pfContent = fmap pastePaste (listToMaybe revisions)
+	, pfContent = pastePaste <$> mbPaste
         }
       (getValue,_) = pasteFormlet formlet
       value = formletValue getValue params

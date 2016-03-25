@@ -44,20 +44,17 @@ import           Text.Formlet
 
 -- | Render the page page.
 page :: PastePage -> Markup
-page PastePage{ppPaste=p,..} =
+page PastePage{..} = do
+  let paste = if not ppRevision
+                then ppPaste
+                else ppPaste { pcLatest         = pcOriginal ppPaste
+                             , pcLatestHints    = pcOriginalHints ppPaste
+                             , pcRevisions      = []
+                             , pcRevisionsHints = [] }
   layoutPage $ Page {
-    pageTitle = case ppRevisions of
-                  (rev:_) -> pasteTitle rev
-                  _ -> pasteTitle p
-  , pageBody = do viewPaste (if ppRevision then [] else ppRevisions)
-    	       	  	    []
-			    ppChans
-			    ppLangs
-			    (p,case ppRevisionsHints of (hints:_) -> hints; _ -> ppHints)
-                  viewAnnotations (p : ppAnnotations)
-                                  ppChans
-                                  ppLangs
-                                  (zip ppAnnotations ppAnnotationHints)
+    pageTitle = pasteTitle (pcLatest paste)
+  , pageBody = do viewPaste ppChans ppLangs Nothing paste
+                  viewAnnotations ppChans ppLangs paste
   , pageName = "paste"
   }
 
@@ -184,48 +181,64 @@ getPasteId PasteFormlet{..} =
   return . PasteId
 
 -- | View the paste's annotations.
-viewAnnotations :: [Paste] -> [Channel] -> [Language] -> [(Paste,[Hint])] -> Markup
-viewAnnotations pastes chans langs annotations = do
-  mapM_ (viewPaste [] pastes chans langs) annotations
+viewAnnotations :: [Channel] -> [Language] -> PasteContext -> Markup
+viewAnnotations chans langs paste = do
+  let annotations = pcAnnotations paste
+      originalId  = pasteId (pcOriginal paste)
+  let prevIds = originalId : map (pasteId.pcOriginal) annotations
+  forM_ (zip prevIds annotations) $ \(prevId, ann) ->
+    viewPaste chans langs (Just (prevId, originalId)) ann
 
--- | View a paste's details and content.
-viewPaste :: [Paste] -> [Paste] -> [Channel] -> [Language] -> (Paste,[Hint]) -> Markup
-viewPaste revisions annotations chans langs (paste@Paste{..},hints) = do
-  pasteDetails revisions annotations chans langs paste
-  pasteContent revisions langs paste
-  viewHints hints
+-- | View the paste's details and content.
+viewPaste
+  :: [Channel]
+  -> [Language]
+  -> Maybe (PasteId, PasteId)   -- ^ (previous annotations's id, earliest id)
+  -> PasteContext
+  -> Markup
+viewPaste chans langs mbAnnotationInfo paste = do
+  pasteDetails chans langs mbAnnotationInfo paste
+  pasteContent langs paste
+  viewHints (pcLatestHints paste)
 
 -- | List the details of the page in a dark section.
-pasteDetails :: [Paste] -> [Paste] -> [Channel] -> [Language] -> Paste -> Markup
-pasteDetails revisions annotations chans langs paste =
+pasteDetails :: [Channel] -> [Language] -> Maybe (PasteId, PasteId) -> PasteContext -> Markup
+pasteDetails chans langs mbAnnotationInfo paste =
   darkNoTitleSection $ do
-    let title = case revisions of
-                  (rev:_) -> pasteTitle rev
-                  _ -> pasteTitle paste
-    h2 $ a ! A.href (toValue ("#a" ++ show (pasteId paste)))
-           ! A.id (toValue ("a" ++ show (pasteId paste)))
-           ! A.name (toValue ("a" ++ show (pasteId paste)))
-           $ toMarkup $ fromStrict title
-    pasteNav annotations paste
+    let latest   = pcLatest paste
+        original = pcOriginal paste
+    h2 $ a ! A.href (toValue ("#a" ++ show pid))
+           ! A.id (toValue ("a" ++ show pid))
+           ! A.name (toValue ("a" ++ show pid))
+           $ toMarkup $ fromStrict (pasteTitle latest)
+    pasteNav mbAnnotationInfo paste
     ul ! aClass "paste-specs" $ do
       detail "Paste" $ do
-        pasteLink paste $ "#" ++ show (pasteId paste)
+        revisionPidLink (pasteId latest)
 	" "
-        linkToParent paste
+        linkToParent latest
       detail "Author(s)" $ do
-        let authors | null revisions = map pasteAuthor [paste]
-	    	    | otherwise      = map pasteAuthor revisions
+        let authors = map pasteAuthor (original : pcRevisions paste)
         htmlCommasAnd $ flip map (nub authors) $ \author ->
 	  linkAuthor author
-      detail "Language" $ showLanguage langs (pasteLanguage paste)
-      detail "Channel" $ showChannel (Just paste) chans (pasteChannel paste)
-      detail "Created" $ showDateTime (pasteDate paste)
-      unless (length revisions < 2) $ detail "Revisions" $ do
+      detail "Language" $
+        showLanguage langs (pasteLanguage latest)
+      detail "Channel" $
+        showChannel (Just latest) chans (pasteChannel latest)
+      detail "Created" $
+        showDateTime (pasteDate original)
+      let revisions = pcRevisions paste
+      unless (null revisions) $ detail "Revisions" $ do
         br
-        ul !. "revisions" $ listRevisions paste revisions
+        ul !. "revisions" $ do
+          zipWithM revisionDetails
+            revisions
+            (tail revisions ++ [pcOriginal paste])
+          revisionDetails (pcOriginal paste) (pcOriginal paste)
     clear
 
-    where detail title content = do
+    where pid = pasteId (pcOriginal paste)
+          detail title content = do
             li $ do strong (title ++ ":"); toMarkup content
 
 -- | Link to an author.
@@ -238,25 +251,17 @@ linkToParent paste = do
   case pasteType paste of
     NormalPaste -> return ()
     AnnotationOf pid -> do "(an annotation of "; pidLink pid; ")"
-    RevisionOf pid -> do "(a revision of "; pidLink pid; ")"
-
--- | List the revisions of a paste.
-listRevisions :: Paste -> [Paste] -> Markup
-listRevisions _ [] = return ()
-listRevisions p [x] = revisionDetails p x
-listRevisions p (x:y:xs) = do
-  revisionDetails y x
-  listRevisions p (y:xs)
+    RevisionOf pid -> do "(a revision of "; revisionPidLink pid; ")"
 
 -- | List the details of a revision.
 revisionDetails :: Paste -> Paste -> Markup
-revisionDetails paste revision = li $ do
+revisionDetails revision prev = li $ do
   toMarkup $ showDateTime (pasteDate revision)
   " "
-  revisionLink revision $ do "#"; toMarkup (show (pasteId revision))
-  unless (pasteId paste == pasteId revision) $ do
+  revisionPidLink (pasteId revision)
+  unless (pasteId prev == pasteId revision) $ do
     " "
-    href ("/diff/" ++ show (pasteId paste) ++ "/" ++ show (pasteId revision)) $
+    href ("/diff/" ++ show (pasteId prev) ++ "/" ++ show (pasteId revision)) $
       ("(diff)" :: Markup)
   ": "
   toMarkup (pasteTitle revision)
@@ -265,8 +270,8 @@ revisionDetails paste revision = li $ do
   ")"
 
 -- | Individual paste navigation.
-pasteNav :: [Paste] -> Paste -> Markup
-pasteNav pastes paste =
+pasteNav :: Maybe (PasteId, PasteId) -> PasteContext -> Markup
+pasteNav mbAnnotationInfo paste =
   H.div ! aClass "paste-nav" $ do
     diffLink
     href ("/edit/" ++ pack (show pid) ++ "") ("Edit" :: Text)
@@ -275,56 +280,49 @@ pasteNav pastes paste =
     " - "
     href ("/report/" ++ pack (show pid) ++ "") ("Report/Delete" :: Text)
     " - "
-    pasteRawLink paste $ ("Raw" :: Text)
+    pasteRawLink (pcOriginal paste) $ ("Raw" :: Text)
 
     " - "
-    a ! hrefURI' (updateUrlParams [("title",T.unpack (pasteTitle paste))
-                                 ,("paste","http://lpaste.net/raw/" ++ show (pasteId paste))]
+    a ! hrefURI' (updateUrlParams [("title",T.unpack (pasteTitle (pcLatest paste)))
+                                 ,("paste","http://lpaste.net/raw/" ++ show pid)]
                                  (fromJust (parseURI "https://fpcomplete.com/ide"))) $
       "Clone in IDE"
 
-    where pid = pasteId paste
-          pairs = zip (drop 1 pastes) pastes
-          parent = fmap snd $ find ((==pid).pasteId.fst) $ pairs
-          diffLink = do
-            case listToMaybe pastes of
-              Nothing -> return ()
-              Just Paste{pasteId=parentId} -> do
-                href ("/diff/" ++ show parentId ++ "/" ++ show pid)
-                     ("Diff original" :: Text)
-            case parent of
-              Nothing -> return ()
-              Just Paste{pasteId=prevId} -> do
-	        when (pasteType paste /= AnnotationOf prevId) $ do
-                  " / "
-                  href ("/diff/" ++ show prevId ++ "/" ++ show pid)
-                       ("prev" :: Text)
-            case listToMaybe pastes of
-              Nothing -> return ()
-              Just{} -> " - "
-
+    where pid = pasteId (pcOriginal paste)
+          diffLink = case mbAnnotationInfo of
+            Nothing -> return ()
+            Just (prevAnnId, parentPasteId) -> do
+              href ("/diff/" ++ show parentPasteId ++ "/" ++ show pid)
+                   ("Diff original" :: Text)
+              when (prevAnnId /= parentPasteId) $ do
+                " / "
+                href ("/diff/" ++ show prevAnnId ++ "/" ++ show pid)
+                     ("prev" :: Text)
+              " - "
 
 hrefURI' :: URI -> Attribute
 hrefURI' uri = A.href (toValue (show uri)) where
 
 -- | Show the paste content with highlighting.
-pasteContent :: [Paste] -> [Language] -> Paste -> Markup
-pasteContent revisions langs paste =
-  case revisions of
-    (rev:_) -> lightNoTitleSection $ highlightPaste langs rev
-    _ -> lightNoTitleSection $ highlightPaste langs paste
+pasteContent :: [Language] -> PasteContext -> Markup
+pasteContent langs paste =
+  lightNoTitleSection $ highlightPaste langs (pcLatest paste)
 
 -- | The href link to a paste.
 pasteLink :: ToMarkup html => Paste -> html -> Markup
 pasteLink Paste{..} inner = href ("/" ++ show pasteId) inner
 
--- | The href link to a paste pid.
+-- | The href link to a paste (by its pid).
 pidLink :: PasteId -> Markup
 pidLink pid = href ("/" ++ show pid) $ toMarkup $ "#" ++ show pid
 
--- | The href link to a paste.
+-- | The href link to a specific revision of a paste.
 revisionLink :: ToMarkup html => Paste -> html -> Markup
 revisionLink Paste{..} inner = href ("/revision/" ++ show pasteId) inner
+
+-- | The href link to a specific revision of a paste (by its pid).
+revisionPidLink :: PasteId -> Markup
+revisionPidLink pid = href ("/revision/" ++ show pid) $ toMarkup $ "#" ++ show pid
 
 -- | The href link to a paste, raw content.
 pasteRawLink :: ToMarkup html => Paste -> html -> Markup
