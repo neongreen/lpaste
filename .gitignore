@@ -11,3 +11,5 @@ TAGS
 .hsenv/
 hpaste.conf
 .stack-work
+.cabal-sandbox/
+cabal.sandbox.config
