@@ -31,7 +31,7 @@ import qualified Text.Blaze.Html5.Attributes   as A
 import           Text.Blaze.Pagination
 
 -- | Render the browse page.
-page :: UTCTime -> PN -> [Channel] -> [Language] -> [Paste] -> Maybe String -> Html
+page :: UTCTime -> PN -> [Channel] -> [Language] -> [(Paste, [Paste])] -> Maybe String -> Html
 page now pn chans langs ps mauthor =
   layoutPage $ Page {
     pageTitle = "Browse pastes"
@@ -40,7 +40,7 @@ page now pn chans langs ps mauthor =
   }
 
 -- | View the paginated pastes.
-browse :: UTCTime -> PN -> [Channel] -> [Language] -> [Paste] -> Maybe String -> Html
+browse :: UTCTime -> PN -> [Channel] -> [Language] -> [(Paste, [Paste])] -> Maybe String -> Html
 browse now pn channels languages ps mauthor = do
   darkSection title $ do
     pagination pn
@@ -50,8 +50,11 @@ browse now pn channels languages ps mauthor = do
       pastes ps
     pagination pn { pnPn = (pnPn pn) { pnShowDesc = False } }
 
-    where pastes = mapM_ $ \paste@Paste{..} -> tr $ do
-                     td $ pasteLink paste pasteTitle
+    where trueTitle paste revisions = case revisions of
+                                        (rev:_) -> pasteTitle rev
+                                        [] -> pasteTitle paste
+          pastes = mapM_ $ \(paste@Paste{..}, revisions) -> tr $ do
+                     td $ pasteLink paste (trueTitle paste revisions)
                      unless (isJust mauthor) $
                        td $ do
 			 let author = T.unpack pasteAuthor
