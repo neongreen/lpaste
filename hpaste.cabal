@@ -31,7 +31,6 @@ Executable hpaste
    ,ConfigFile
    ,HJScript
    ,MissingH
-   ,MonadCatchIO-transformers
    ,blaze-builder
    ,bytestring
    ,containers
@@ -59,7 +58,6 @@ Executable hpaste
    ,postgresql-simple
   Other-modules:
     Control.Monad.IO
-    Control.Monad.Catch
     Data.Time.Relative
     Hpaste.Controller.Rss
     Control.Monad.Env
@@ -73,7 +71,6 @@ Executable hpaste
     Data.Text.FromText
     Data.Either.Extra
     Main
-    Snap.App
     Network.URI.Params
     Network.Email
     Network.SendEmail
