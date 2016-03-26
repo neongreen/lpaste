@@ -46,37 +46,35 @@ handle revision = do
   justOrGoHome pid $ \(pid) -> do
       html <- cache (if revision then Key.Revision pid else Key.Paste pid) $ do
         getPrivate <- getParam "show_private"
-        paste <- model $ if isJust getPrivate
-	      	       	    then getPrivatePasteById (pid)
-	      	       	    else getPasteById (pid)
-        case paste of
-          Nothing -> return Nothing
-          Just pcOriginal -> model $ do
-            chans <- getChannels
-            langs <- getLanguages
-            pcOriginalHints  <- getHints (pasteId pcOriginal)
-            pcLatest         <- getLatestVersion pcOriginal
-            pcLatestHints    <- getHints (pasteId pcLatest)
-            pcRevisions      <- getRevisions (pasteId pcOriginal)
-            pcRevisionsHints <- mapM (getHints.pasteId) pcRevisions
-            annotations      <- getAnnotations (pasteId pcOriginal)
-            pcAnnotations    <- for annotations $ \ann -> do
-                pcOriginalHints  <- getHints (pasteId ann)
-                pcLatest         <- getLatestVersion ann
-                pcLatestHints    <- getHints (pasteId pcLatest)
-                pcRevisions      <- getRevisions (pasteId ann)
-                pcRevisionsHints <- mapM (getHints.pasteId) pcRevisions
-                return PasteContext {
-                    pcOriginal    = ann
-                  , pcAnnotations = []
-                  , .. }
-            return $ Just $ page PastePage {
-                ppChans    = chans
-              , ppLangs    = langs
-	      , ppRevision = revision
-                -- Filling in all the pc* fields automatically
-              , ppPaste    = PasteContext {..}
-              }
+        mbPaste <- model $ if isJust getPrivate
+                              then getPrivatePasteById pid
+                              else getPasteById pid
+        for mbPaste $ \pcOriginal -> model $ do
+          chans <- getChannels
+          langs <- getLanguages
+          pcOriginalHints  <- getHints (pasteId pcOriginal)
+          pcLatest         <- getLatestVersion pcOriginal
+          pcLatestHints    <- getHints (pasteId pcLatest)
+          pcRevisions      <- getRevisions (pasteId pcOriginal)
+          pcRevisionsHints <- mapM (getHints.pasteId) pcRevisions
+          annotations      <- getAnnotations (pasteId pcOriginal)
+          pcAnnotations    <- for annotations $ \ann -> do
+              pcOriginalHints  <- getHints (pasteId ann)
+              pcLatest         <- getLatestVersion ann
+              pcLatestHints    <- getHints (pasteId pcLatest)
+              pcRevisions      <- getRevisions (pasteId ann)
+              pcRevisionsHints <- mapM (getHints.pasteId) pcRevisions
+              return PasteContext {
+                  pcOriginal    = ann
+                , pcAnnotations = []
+                , .. }
+          return $ page PastePage {
+              ppChans    = chans
+            , ppLangs    = langs
+            , ppRevision = revision
+              -- Filling in all the pc* fields automatically
+            , ppPaste    = PasteContext {..}
+            }
       justOrGoHome html outputText
 
 -- | Control paste annotating / submission.
@@ -105,9 +103,8 @@ pasteForm channels languages defChan annotatePaste editPaste = do
   submittedPublic <- isJust <$> getParam "public"
   let mbOriginal = fst <$> (annotatePaste <|> editPaste)
       mbLatest   = snd <$> (annotatePaste <|> editPaste)
-  let parentPasteId = case mbOriginal of
-                        Nothing -> Nothing
-                        Just p  -> case pasteType p of
+  let parentPasteId = mbOriginal >>= \p ->
+                        case pasteType p of
                           AnnotationOf x -> Just x
                           _ -> Nothing
   let formlet = PasteFormlet {
@@ -138,7 +135,7 @@ pasteForm channels languages defChan annotatePaste editPaste = do
 	    mapM_ (resetCache . Key.Paste) $
               nub $ catMaybes [pasteSubmitId paste, parentPasteId]
 	    pid <- model $ createPaste languages channels paste spamrating submittedPublic
-	    maybe (return ()) redirectToPaste (parentPasteId <|> pid)
+	    mapM_ redirectToPaste (parentPasteId <|> pid)
   return html
 
 -- | Go back to the home page with a spam indication.

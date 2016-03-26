@@ -217,7 +217,7 @@ pasteDetails chans langs mbAnnotationInfo paste =
 	" "
         linkToParent latest
       let authors = nub (map pasteAuthor (original : pcRevisions paste))
-      detail (if length authors > 1 then "Authors" else "Author") $ do
+      detail (if length authors > 1 then "Authors" else "Author") $
         htmlCommasAnd $ map linkAuthor authors
       detail "Language" $
         showLanguage langs (pasteLanguage latest)
