@@ -173,7 +173,7 @@ dropPlace values name  def =
               | otherwise         = id
         selected $ option ! A.value (toValue key) $ toHtml title
 
--- | Get the paste id.
+-- | Get the id of the paste being edited/annotated.
 getPasteId :: PasteFormlet -> Maybe PasteId
 getPasteId PasteFormlet{..} =
   M.lookup "id" pfParams >>=

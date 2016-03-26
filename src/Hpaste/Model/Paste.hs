@@ -16,6 +16,7 @@ module Hpaste.Model.Paste
   ,createPaste
   ,getAnnotations
   ,getRevisions
+  ,getLatestVersionById
   ,getLatestVersion
   ,getPaginatedPastes
   ,countPublicPastes
@@ -118,6 +119,10 @@ getRevisions pid = do
         ,"ORDER BY created DESC"]
         (Only pid)
 
+-- | Get latest version of a paste by its id.
+getLatestVersionById :: PasteId -> HPModel (Maybe Paste)
+getLatestVersionById pid = traverse getLatestVersion =<< getPasteById pid
+
 -- | Get latest version of a paste.
 getLatestVersion :: Paste -> HPModel Paste
 getLatestVersion paste = do
@@ -204,12 +209,12 @@ announcePaste ptype channel PasteSubmit{..} pid = do
         getVerb = case ptype of
           NormalPaste -> return $ "pasted"
           AnnotationOf pid -> do
-            paste <- getPasteById pid
+            paste <- getLatestVersionById pid
 	    return $ case paste of
 	      Just Paste{..} -> "annotated “" ++ pasteTitle ++ "” with"
               Nothing -> "annotated a paste with"
           RevisionOf pid -> do
-            paste <- getPasteById pid
+            paste <- getLatestVersionById pid
 	    return $ case paste of
 	      Just Paste{..} -> "revised “" ++ pasteTitle ++ "”:"
               Nothing -> "revised a paste:"
