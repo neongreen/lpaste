@@ -135,7 +135,7 @@ pasteSubmit pf@PasteFormlet{..} =
           annotateLanguage = join (pasteLanguage . snd <$> pfAnnotatePaste) >>= findLangById
           annotateChan = join (pasteChannel . snd <$> pfAnnotatePaste) >>= findChanById
 
-          editTitle = Nothing
+          editTitle = (pasteTitle . snd) <$> pfEditPaste
           editLanguage = join (pasteLanguage . snd <$> pfEditPaste) >>= findLangById
           editChan = join (pasteChannel . snd <$> pfEditPaste) >>= findChanById
 
