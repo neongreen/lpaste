@@ -216,10 +216,9 @@ pasteDetails chans langs mbAnnotationInfo paste =
         revisionPidLink (pasteId latest)
 	" "
         linkToParent latest
-      detail "Author(s)" $ do
-        let authors = map pasteAuthor (original : pcRevisions paste)
-        htmlCommasAnd $ flip map (nub authors) $ \author ->
-	  linkAuthor author
+      let authors = nub (map pasteAuthor (original : pcRevisions paste))
+      detail (if length authors > 1 then "Authors" else "Author") $ do
+        htmlCommasAnd $ map linkAuthor authors
       detail "Language" $
         showLanguage langs (pasteLanguage latest)
       detail "Channel" $
