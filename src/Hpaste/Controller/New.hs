@@ -1,5 +1,6 @@
 {-# OPTIONS -Wall -fno-warn-name-shadowing #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- | Create new paste controller.
 
@@ -11,7 +12,7 @@ import Hpaste.Types
 import Hpaste.Controller.Paste (pasteForm,getPasteId)
 import Hpaste.Model.Channel    (getChannels)
 import Hpaste.Model.Language   (getLanguages)
-import Hpaste.Model.Paste      (getPasteById)
+import Hpaste.Model.Paste      (getPasteById, getLatestVersion)
 import Hpaste.View.Annotate    as Annotate (page)
 import Hpaste.View.Edit        as Edit (page)
 import Hpaste.View.New         as New (page)
@@ -33,10 +34,11 @@ handle style = do
   case pid of
     Just pid -> do
       paste <- model $ getPasteById pid
-      let apaste | style == AnnotatePaste = paste
+      latest <- model $ traverse getLatestVersion paste
+      let epaste | style == EditPaste = (,) <$> paste <*> latest
       	  	 | otherwise = Nothing
-      let epaste | style == EditPaste = paste
-      	  	 | otherwise = Nothing
+      let apaste | style == AnnotatePaste = (,) <$> paste <*> latest
+                 | otherwise = Nothing
       form <- pasteForm chans langs defChan apaste epaste
       justOrGoHome paste $ \paste -> do
         case style of

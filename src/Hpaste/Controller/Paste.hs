@@ -29,6 +29,7 @@ import Data.ByteString         (ByteString)
 import Data.ByteString.UTF8    (toString)
 import Data.Maybe
 import Data.Monoid.Operator    ((++))
+import Data.List               (nub)
 import Data.String             (fromString)
 import Data.Text               (Text)
 import Data.Traversable        (for)
@@ -79,13 +80,36 @@ handle revision = do
       justOrGoHome html outputText
 
 -- | Control paste annotating / submission.
-pasteForm :: [Channel] -> [Language] -> Maybe Text -> Maybe Paste -> Maybe Paste -> HPCtrl Html
+--
+-- We are passed the original and the latest version of the paste we're
+-- editing/annotating. This is done for 2 reasons:
+--
+--   * Imagine that A has an annotation B1 which was later edited to B2. If
+--   we're annotating B2, we want to attach the new annotation to A, not B1,
+--   and so we would have to look up the “parent paste” of B2, but only B1
+--   has a link to it.
+--
+--   * If we're editing an annotation, we want to redirect to the parent
+--   paste, not the annotation. Again, we have to know what the parent paste
+--   was, and for that we need the original paste.
+pasteForm
+  :: [Channel]
+  -> [Language]
+  -> Maybe Text
+  -> Maybe (Paste, Paste)
+  -> Maybe (Paste, Paste)
+  -> HPCtrl Html
 pasteForm channels languages defChan annotatePaste editPaste = do
   params <- getParams
   submittedPrivate <- isJust <$> getParam "private"
   submittedPublic <- isJust <$> getParam "public"
-  mbPaste <- traverse (model . getLatestVersion)
-                      (annotatePaste <|> editPaste)
+  let mbOriginal = fst <$> (annotatePaste <|> editPaste)
+      mbLatest   = snd <$> (annotatePaste <|> editPaste)
+  let parentPasteId = case mbOriginal of
+                        Nothing -> Nothing
+                        Just p  -> case pasteType p of
+                          AnnotationOf x -> Just x
+                          _ -> Nothing
   let formlet = PasteFormlet {
           pfSubmitted = submittedPrivate || submittedPublic
         , pfErrors    = []
@@ -95,7 +119,7 @@ pasteForm channels languages defChan annotatePaste editPaste = do
         , pfDefChan   = defChan
         , pfAnnotatePaste = annotatePaste
         , pfEditPaste = editPaste
-	, pfContent = pastePaste <$> mbPaste
+	, pfContent = pastePaste <$> mbLatest
         }
       (getValue,_) = pasteFormlet formlet
       value = formletValue getValue params
@@ -111,9 +135,10 @@ pasteForm channels languages defChan annotatePaste editPaste = do
       	 then goSpamBlocked
 	 else do
 	    resetCache Key.Home
-	    maybe (return ()) (resetCache . Key.Paste) $ pasteSubmitId paste
+	    mapM_ (resetCache . Key.Paste) $
+              nub $ catMaybes [pasteSubmitId paste, parentPasteId]
 	    pid <- model $ createPaste languages channels paste spamrating submittedPublic
-	    maybe (return ()) redirectToPaste pid
+	    maybe (return ()) redirectToPaste (parentPasteId <|> pid)
   return html
 
 -- | Go back to the home page with a spam indication.

@@ -114,8 +114,9 @@ data PasteFormlet = PasteFormlet {
  , pfLanguages :: [Language]
  , pfChannels  :: [Channel]
  , pfDefChan   :: Maybe Text
- , pfAnnotatePaste :: Maybe Paste
- , pfEditPaste :: Maybe Paste
+   -- See documentation for 'pasteForm'
+ , pfAnnotatePaste :: Maybe (Paste, Paste)
+ , pfEditPaste :: Maybe (Paste, Paste)
  , pfContent :: Maybe Text
 }
 
