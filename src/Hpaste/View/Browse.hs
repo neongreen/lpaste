@@ -54,13 +54,21 @@ browse now pn channels languages ps mauthor = do
                      td $ pasteLink original (pasteTitle latest)
                      unless (isJust mauthor) $
                        td $ do
-			 let author = T.unpack (pasteAuthor latest)
-			 if True -- validNick author
-			    then a ! hrefURI (authorUri author) $ toHtml author
-			    else toHtml author
+			 let authorLatest   = T.unpack (pasteAuthor latest)
+			     authorOriginal = T.unpack (pasteAuthor original)
+                         if authorLatest == authorOriginal
+                            then makeAuthorLink authorLatest
+                            else do toMarkup authorLatest
+                                    " (original by "
+                                    makeAuthorLink authorOriginal
+                                    ")"
                      td $ ago (pasteDate original) now
                      td $ showLanguage languages (pasteLanguage latest)
                      td $ showChannel Nothing channels (pasteChannel latest)
+          makeAuthorLink author
+            | True {-validNick author-} = a ! hrefURI (authorUri author)
+                                            $ toHtml author
+            | otherwise                 = toHtml author
           authorUri author = updateUrlParam "author" author
 	  	    	   $ updateUrlParam "pastes_page"   "0"
 			   $ pnURI pn
