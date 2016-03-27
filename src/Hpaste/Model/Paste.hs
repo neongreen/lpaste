@@ -142,6 +142,12 @@ createOrUpdate langs chans paste@PasteSubmit{..} spamrating public = do
 -- | Create a new paste (possibly annotating an existing one).
 createPaste :: [Language] -> [Channel] -> PasteSubmit -> Integer -> Bool -> HPModel (Maybe PasteId)
 createPaste langs chans ps@PasteSubmit{..} spamrating public = do
+  -- We need the title of the parent of the title for the announcement (if
+  -- we're revising an existing paste we won't be able to get it after adding
+  -- the paste, so we have to get it before)
+  parentTitle <- case ann_pid <|> rev_pid of
+    Nothing  -> return Nothing
+    Just pid -> fmap pasteTitle <$> getLatestVersionById pid
   pid <- generatePasteId public
   res <- single ["INSERT INTO paste"
                 ,"(id,title,author,content,channel,language,annotation_of,revision_of,spamrating,public)"
@@ -154,7 +160,7 @@ createPaste langs chans ps@PasteSubmit{..} spamrating public = do
   just (pasteSubmitChannel >>= lookupChan) $ \chan ->
     just res $ \pid -> do
       when (spamrating < spamMinLevel) $
-        announcePaste pasteSubmitType (channelName chan) ps pid
+        announcePaste pasteSubmitType (channelName chan) ps parentTitle pid
   return (pasteSubmitId <|> res)
 
   where lookupChan cid = find ((==cid).channelId) chans
@@ -191,10 +197,15 @@ createHints ps pid = do
          ,show hint)
 
 -- | Announce the paste.
-announcePaste :: PasteType -> Text -> PasteSubmit -> PasteId -> HPModel ()
-announcePaste ptype channel PasteSubmit{..} pid = do
+announcePaste
+  :: PasteType
+  -> Text               -- ^ Channel
+  -> PasteSubmit
+  -> Maybe Text         -- ^ The title of the parent paste
+  -> PasteId
+  -> HPModel ()
+announcePaste ptype channel PasteSubmit{..} parentTitle pid = do
   conf <- env modelStateConfig
-  verb <- getVerb
   unless (seemsLikeSpam pasteSubmitTitle || seemsLikeSpam pasteSubmitAuthor) $ do
     announcer <- env modelStateAnns
     io $ announce announcer pasteSubmitAuthor channel $ do
@@ -206,17 +217,15 @@ announcePaste ptype channel PasteSubmit{..} pid = do
 	         NormalPaste -> showPid pid
                  AnnotationOf apid -> showPid apid ++ "#a" ++ showPid pid
                  RevisionOf apid -> showPid apid
-        getVerb = case ptype of
-          NormalPaste -> return $ "pasted"
-          AnnotationOf pid -> do
-            paste <- getLatestVersionById pid
-	    return $ case paste of
-	      Just Paste{..} -> "annotated “" ++ pasteTitle ++ "” with"
+        verb = case ptype of
+          NormalPaste -> "pasted"
+          AnnotationOf pid ->
+	    case parentTitle of
+	      Just s  -> "annotated “" ++ s ++ "” with"
               Nothing -> "annotated a paste with"
-          RevisionOf pid -> do
-            paste <- getLatestVersionById pid
-	    return $ case paste of
-	      Just Paste{..} -> "revised “" ++ pasteTitle ++ "”:"
+          RevisionOf pid ->
+	    case parentTitle of
+	      Just s  -> "revised “" ++ s ++ "”:"
               Nothing -> "revised a paste:"
         showPid (PasteId p) = pack $ show $ (p :: Integer)
         seemsLikeSpam = T.isInfixOf "http://"
