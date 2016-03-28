@@ -75,7 +75,7 @@ pasteForm channels languages defChan annotatePaste editPaste = do
   params <- getParams
   submittedPrivate <- isJust <$> getParam "private"
   submittedPublic <- isJust <$> getParam "public"
-  revisions <- maybe (return []) (model . getRevisions) (fmap pasteId (annotatePaste <|> editPaste))
+  mbLatest <- model $ traverse getLatestVersion (annotatePaste <|> editPaste)
   let formlet = PasteFormlet {
           pfSubmitted = submittedPrivate || submittedPublic
         , pfErrors    = []
@@ -85,7 +85,7 @@ pasteForm channels languages defChan annotatePaste editPaste = do
         , pfDefChan   = defChan
         , pfAnnotatePaste = annotatePaste
         , pfEditPaste = editPaste
-	, pfContent = fmap pastePaste (listToMaybe revisions)
+	, pfContent = pastePaste <$> mbLatest
         }
       (getValue,_) = pasteFormlet formlet
       value = formletValue getValue params
