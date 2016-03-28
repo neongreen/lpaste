@@ -38,8 +38,13 @@ import Text.Blaze.Html5                        (Markup)
 
 -- | A paste together with its revisions, annotations, and hints
 data PasteContext = PasteContext {
-   pcPaste           :: Paste
-  ,pcHints           :: [Hint]
+   -- The original version of the paste (note that we usually refer to the
+   -- paste by the id of the earliest version, not of the latest version)
+   pcOriginal        :: Paste
+  ,pcOriginalHints   :: [Hint]
+   -- The latest revision of the paste
+  ,pcLatest          :: Paste
+  ,pcLatestHints     :: [Hint]
    -- The revisions go from latest to earliest
   ,pcRevisions       :: [Paste]
   ,pcRevisionHints   :: [[Hint]]

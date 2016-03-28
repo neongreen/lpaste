@@ -47,8 +47,10 @@ handle revision = do
         mbPaste <- model $ if isJust getPrivate
                               then getPrivatePasteById pid
                               else getPasteById pid
-        for mbPaste $ \paste -> model $ do
-          hints <- getHints (pasteId paste)
+        for mbPaste $ \original -> model $ do
+          originalHints <- getHints (pasteId original)
+          latest <- getLatestVersion original
+          latestHints <- getHints (pasteId latest)
           annotations <- getAnnotations (pid)
           revisions <- getRevisions (pid)
           ahints <- mapM (getHints.pasteId) annotations
@@ -56,8 +58,10 @@ handle revision = do
           chans <- getChannels
           langs <- getLanguages
           let pasteContext = PasteContext {
-                pcPaste           = paste,
-                pcHints           = hints,
+                pcOriginal        = original,
+                pcOriginalHints   = originalHints,
+                pcLatest          = latest,
+                pcLatestHints     = latestHints,
                 pcRevisions       = revisions,
                 pcRevisionHints   = rhints,
                 pcAnnotations     = annotations,

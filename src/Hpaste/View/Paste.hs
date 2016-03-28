@@ -48,13 +48,13 @@ page PastePage{ppPaste=PasteContext{..},..} =
   layoutPage $ Page {
     pageTitle = case pcRevisions of
                   (rev:_) -> pasteTitle rev
-                  _ -> pasteTitle pcPaste
+                  _ -> pasteTitle pcOriginal
   , pageBody = do viewPaste (if ppRevision then [] else pcRevisions)
     	       	  	    []
 			    ppChans
 			    ppLangs
-			    (pcPaste, case pcRevisionHints of (hints:_) -> hints; _ -> pcHints)
-                  viewAnnotations (pcPaste : pcAnnotations)
+			    (pcOriginal, case pcRevisionHints of (hints:_) -> hints; _ -> pcOriginalHints)
+                  viewAnnotations (pcOriginal : pcAnnotations)
                                   ppChans
                                   ppLangs
                                   (zip pcAnnotations pcAnnotationHints)
