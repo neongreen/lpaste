@@ -46,14 +46,12 @@ import           Text.Formlet
 page :: PastePage -> Markup
 page PastePage{ppPaste=PasteContext{..},..} =
   layoutPage $ Page {
-    pageTitle = case pcRevisions of
-                  (rev:_) -> pasteTitle rev
-                  _ -> pasteTitle pcOriginal
+    pageTitle = pasteTitle pcLatest
   , pageBody = do viewPaste (if ppRevision then [] else pcRevisions)
     	       	  	    []
 			    ppChans
 			    ppLangs
-			    (pcOriginal, case pcRevisionHints of (hints:_) -> hints; _ -> pcOriginalHints)
+			    (pcOriginal, pcLatestHints)
                   viewAnnotations (pcOriginal : pcAnnotations)
                                   ppChans
                                   ppLangs
