@@ -30,6 +30,7 @@ import Data.Maybe
 import Data.Monoid.Operator    ((++))
 import Data.String             (fromString)
 import Data.Text               (Text)
+import Data.Traversable        (for)
 import Prelude                 hiding ((++))
 import Safe
 import Snap.App
@@ -43,30 +44,30 @@ handle revision = do
   justOrGoHome pid $ \(pid) -> do
       html <- cache (if revision then Key.Revision pid else Key.Paste pid) $ do
         getPrivate <- getParam "show_private"
-        paste <- model $ if isJust getPrivate
-	      	       	    then getPrivatePasteById (pid)
-	      	       	    else getPasteById (pid)
-        case paste of
-          Nothing -> return Nothing
-          Just paste -> do
-            hints <- model $ getHints (pasteId paste)
-            annotations <- model $ getAnnotations (pid)
-            revisions <- model $ getRevisions (pid)
-            ahints <- model $ mapM (getHints.pasteId) annotations
-            rhints <- model $ mapM (getHints.pasteId) revisions
-            chans <- model $ getChannels
-            langs <- model $ getLanguages
-            return $ Just $ page PastePage {
-              ppChans       = chans
-            , ppLangs       = langs
-            , ppAnnotations = annotations
-            , ppRevisions   = revisions
-            , ppHints       = hints
-            , ppPaste       = paste
-            , ppAnnotationHints = ahints
-            , ppRevisionsHints = rhints
-	    , ppRevision = revision
-            }
+        mbPaste <- model $ if isJust getPrivate
+                              then getPrivatePasteById pid
+                              else getPasteById pid
+        for mbPaste $ \paste -> model $ do
+          hints <- getHints (pasteId paste)
+          annotations <- getAnnotations (pid)
+          revisions <- getRevisions (pid)
+          ahints <- mapM (getHints.pasteId) annotations
+          rhints <- mapM (getHints.pasteId) revisions
+          chans <- getChannels
+          langs <- getLanguages
+          let pasteContext = PasteContext {
+                pcPaste           = paste,
+                pcHints           = hints,
+                pcRevisions       = revisions,
+                pcRevisionHints   = rhints,
+                pcAnnotations     = annotations,
+                pcAnnotationHints = ahints }
+          return $ page PastePage {
+            ppChans    = chans
+          , ppLangs    = langs
+          , ppPaste    = pasteContext
+          , ppRevision = revision
+          }
       justOrGoHome html outputText
 
 -- | Control paste annotating / submission.

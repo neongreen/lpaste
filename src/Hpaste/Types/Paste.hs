@@ -6,7 +6,8 @@
 -- | The paste type.
 
 module Hpaste.Types.Paste
-       (Paste(..)
+       (PasteContext(..)
+       ,Paste(..)
        ,PasteType(..)
        ,PasteSubmit(..)
        ,PasteFormlet(..)
@@ -34,6 +35,18 @@ import Language.Haskell.HLint                  (Severity)
 import Snap.Core
 import Text.Blaze                              (ToMarkup(..),toMarkup)
 import Text.Blaze.Html5                        (Markup)
+
+-- | A paste together with its revisions, annotations, and hints
+data PasteContext = PasteContext {
+   pcPaste           :: Paste
+  ,pcHints           :: [Hint]
+   -- The revisions go from latest to earliest
+  ,pcRevisions       :: [Paste]
+  ,pcRevisionHints   :: [[Hint]]
+   -- The annotations go from earliest to latest
+  ,pcAnnotations     :: [Paste]
+  ,pcAnnotationHints :: [[Hint]]
+}
 
 -- | A paste.
 data Paste = Paste {
@@ -107,14 +120,9 @@ data ExprFormlet = ExprFormlet {
 }
 
 data PastePage = PastePage {
-    ppPaste           :: Paste
+    ppPaste           :: PasteContext
   , ppChans           :: [Channel]
   , ppLangs           :: [Language]
-  , ppHints           :: [Hint]
-  , ppAnnotations     :: [Paste]
-  , ppRevisions       :: [Paste]
-  , ppAnnotationHints :: [[Hint]]
-  , ppRevisionsHints  :: [[Hint]]
   , ppRevision        :: Bool
 }
 
