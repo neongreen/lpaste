@@ -49,8 +49,7 @@ data PasteContext = PasteContext {
   ,pcRevisions       :: [Paste]
   ,pcRevisionHints   :: [[Hint]]
    -- The annotations go from earliest to latest
-  ,pcAnnotations     :: [Paste]
-  ,pcAnnotationHints :: [[Hint]]
+  ,pcAnnotations     :: [PasteContext]
 }
 
 -- | A paste.

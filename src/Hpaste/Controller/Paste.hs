@@ -1,5 +1,6 @@
 {-# OPTIONS -Wall -fno-warn-name-shadowing #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Paste controller.
@@ -51,12 +52,21 @@ handle revision = do
           originalHints <- getHints (pasteId original)
           latest <- getLatestVersion original
           latestHints <- getHints (pasteId latest)
-          annotations <- getAnnotations (pid)
           revisions <- getRevisions (pid)
-          ahints <- mapM (getHints.pasteId) annotations
           rhints <- mapM (getHints.pasteId) revisions
           chans <- getChannels
           langs <- getLanguages
+          annotations <- getAnnotations (pid)
+          annotations' <- for annotations $ \ann -> do
+              pcOriginalHints  <- getHints (pasteId ann)
+              pcLatest         <- getLatestVersion ann
+              pcLatestHints    <- getHints (pasteId pcLatest)
+              pcRevisions      <- getRevisions (pasteId ann)
+              pcRevisionsHints <- mapM (getHints.pasteId) pcRevisions
+              return PasteContext {
+                pcOriginal    = ann,
+                pcAnnotations = [],
+                .. }
           let pasteContext = PasteContext {
                 pcOriginal        = original,
                 pcOriginalHints   = originalHints,
@@ -64,8 +74,7 @@ handle revision = do
                 pcLatestHints     = latestHints,
                 pcRevisions       = revisions,
                 pcRevisionHints   = rhints,
-                pcAnnotations     = annotations,
-                pcAnnotationHints = ahints }
+                pcAnnotations     = annotations' }
           return $ page PastePage {
             ppChans    = chans
           , ppLangs    = langs
