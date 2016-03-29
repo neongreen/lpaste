@@ -214,14 +214,14 @@ pasteDetails chans langs annotationInfo paste =
     let original  = pcOriginal paste
         latest    = pcLatest paste
         revisions = pcRevisions paste
-    h2 $ a ! A.href (toValue ("#a" ++ show (pasteId original)))
-           ! A.id (toValue ("a" ++ show (pasteId original)))
-           ! A.name (toValue ("a" ++ show (pasteId original)))
+    h2 $ a ! A.href (toValue ("#a" ++ show pid))
+           ! A.id (toValue ("a" ++ show pid))
+           ! A.name (toValue ("a" ++ show pid))
            $ toMarkup $ fromStrict (pasteTitle latest)
     pasteNav annotationInfo paste
     ul ! aClass "paste-specs" $ do
       detail "Paste" $ do
-        pasteLink original $ "#" ++ show (pasteId original)
+        pasteLink original $ "#" ++ show pid
 	" "
         linkToParent original
       detail "Author(s)" $ do
@@ -237,7 +237,8 @@ pasteDetails chans langs annotationInfo paste =
         ul !. "revisions" $ listRevisions original revisions
     clear
 
-    where detail title content = do
+    where pid = pasteId (pcOriginal paste)
+          detail title content = do
             li $ do strong (title ++ ":"); toMarkup content
 
 -- | Link to an author.
