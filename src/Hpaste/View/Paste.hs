@@ -54,7 +54,7 @@ page PastePage{..} = do
                              , pcRevisionHints = [] }
   layoutPage $ Page {
     pageTitle = pasteTitle (pcLatest paste)
-  , pageBody = do viewPaste [] ppChans ppLangs paste
+  , pageBody = do viewPaste ppChans ppLangs Nothing paste
                   viewAnnotations ppChans ppLangs paste
   , pageName = "paste"
   }
@@ -184,30 +184,32 @@ getPasteId PasteFormlet{..} =
 -- | View the paste's annotations.
 viewAnnotations :: [Channel] -> [Language] -> PasteContext -> Markup
 viewAnnotations chans langs paste = do
-  let pastes = pcOriginal paste : map pcOriginal (pcAnnotations paste)
-  for_ (pcAnnotations paste) $ \ann ->
-    viewPaste pastes chans langs ann
+  let annotations = pcAnnotations paste
+      originalId  = pasteId (pcOriginal paste)
+  let prevIds = originalId : map (pasteId.pcOriginal) annotations
+  forM_ (zip prevIds annotations) $ \(prevId, ann) ->
+    viewPaste chans langs (Just (prevId, originalId)) ann
 
 -- | View a paste's details and content.
 viewPaste
-  :: [Paste]         -- ^ Annotations
-  -> [Channel]
+  :: [Channel]
   -> [Language]
+  -> Maybe (PasteId, PasteId)
   -> PasteContext
   -> Markup
-viewPaste annotations chans langs paste = do
-  pasteDetails annotations chans langs paste
+viewPaste chans langs annotationInfo paste = do
+  pasteDetails chans langs annotationInfo paste
   pasteContent langs (pcLatest paste)
   viewHints (pcLatestHints paste)
 
 -- | List the details of the page in a dark section.
 pasteDetails
-  :: [Paste]         -- ^ Annotations
-  -> [Channel]
+  :: [Channel]
   -> [Language]
+  -> Maybe (PasteId, PasteId)
   -> PasteContext
   -> Markup
-pasteDetails annotations chans langs paste =
+pasteDetails chans langs annotationInfo paste =
   darkNoTitleSection $ do
     let original  = pcOriginal paste
         latest    = pcLatest paste
@@ -216,7 +218,7 @@ pasteDetails annotations chans langs paste =
            ! A.id (toValue ("a" ++ show (pasteId original)))
            ! A.name (toValue ("a" ++ show (pasteId original)))
            $ toMarkup $ fromStrict (pasteTitle latest)
-    pasteNav annotations original
+    pasteNav annotationInfo original
     ul ! aClass "paste-specs" $ do
       detail "Paste" $ do
         pasteLink original $ "#" ++ show (pasteId original)
@@ -282,10 +284,10 @@ revisionDetails paste revision = li $ do
 
 -- | Individual paste navigation.
 pasteNav
-  :: [Paste]     -- ^ Annotations
+  :: Maybe (PasteId, PasteId)   -- ^ (previous annotations's id, parent's id)
   -> Paste
   -> Markup
-pasteNav pastes paste =
+pasteNav annotationInfo paste =
   H.div ! aClass "paste-nav" $ do
     diffLink
     href ("/edit/" ++ pack (show pid) ++ "") ("Edit" :: Text)
@@ -303,25 +305,17 @@ pasteNav pastes paste =
       "Clone in IDE"
 
     where pid = pasteId paste
-          pairs = zip (drop 1 pastes) pastes
-          parent = fmap snd $ find ((==pid).pasteId.fst) $ pairs
-          diffLink = do
-            case listToMaybe pastes of
+          diffLink =
+            case annotationInfo of
               Nothing -> return ()
-              Just Paste{pasteId=parentId} -> do
+              Just (prevId, parentId) -> do
                 href ("/diff/" ++ show parentId ++ "/" ++ show pid)
                      ("Diff original" :: Text)
-            case parent of
-              Nothing -> return ()
-              Just Paste{pasteId=prevId} -> do
-	        when (pasteType paste /= AnnotationOf prevId) $ do
+                when (prevId /= parentId) $ do
                   " / "
                   href ("/diff/" ++ show prevId ++ "/" ++ show pid)
                        ("prev" :: Text)
-            case listToMaybe pastes of
-              Nothing -> return ()
-              Just{} -> " - "
-
+                " - "
 
 hrefURI' :: URI -> Attribute
 hrefURI' uri = A.href (toValue (show uri)) where
