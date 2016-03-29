@@ -218,7 +218,7 @@ pasteDetails chans langs annotationInfo paste =
            ! A.id (toValue ("a" ++ show (pasteId original)))
            ! A.name (toValue ("a" ++ show (pasteId original)))
            $ toMarkup $ fromStrict (pasteTitle latest)
-    pasteNav annotationInfo original
+    pasteNav annotationInfo paste
     ul ! aClass "paste-specs" $ do
       detail "Paste" $ do
         pasteLink original $ "#" ++ show (pasteId original)
@@ -285,7 +285,7 @@ revisionDetails paste revision = li $ do
 -- | Individual paste navigation.
 pasteNav
   :: Maybe (PasteId, PasteId)   -- ^ (previous annotations's id, parent's id)
-  -> Paste
+  -> PasteContext
   -> Markup
 pasteNav annotationInfo paste =
   H.div ! aClass "paste-nav" $ do
@@ -296,15 +296,15 @@ pasteNav annotationInfo paste =
     " - "
     href ("/report/" ++ pack (show pid) ++ "") ("Report/Delete" :: Text)
     " - "
-    pasteRawLink paste $ ("Raw" :: Text)
+    pasteRawLink (pcOriginal paste) ("Raw" :: Text)
 
     " - "
-    a ! hrefURI' (updateUrlParams [("title",T.unpack (pasteTitle paste))
-                                 ,("paste","http://lpaste.net/raw/" ++ show (pasteId paste))]
+    a ! hrefURI' (updateUrlParams [("title",T.unpack (pasteTitle (pcLatest paste)))
+                                 ,("paste","http://lpaste.net/raw/" ++ show pid)]
                                  (fromJust (parseURI "https://fpcomplete.com/ide"))) $
       "Clone in IDE"
 
-    where pid = pasteId paste
+    where pid = pasteId (pcOriginal paste)
           diffLink =
             case annotationInfo of
               Nothing -> return ()
