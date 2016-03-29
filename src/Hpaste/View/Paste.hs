@@ -192,10 +192,10 @@ viewAnnotations :: [Channel] -> [Language] -> PasteContext -> Markup
 viewAnnotations chans langs paste = do
   let pastes = pcOriginal paste : map pcOriginal (pcAnnotations paste)
   for_ (pcAnnotations paste) $ \ann ->
-    viewPaste [] pastes chans langs
+    viewPaste (pcRevisions ann) pastes chans langs
               (pcOriginal ann)
-              (pcOriginal ann)
-              (pcOriginalHints ann)
+              (pcLatest ann)
+              (pcLatestHints ann)
 
 -- | View a paste's details and content.
 viewPaste
