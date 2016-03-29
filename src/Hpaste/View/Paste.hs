@@ -53,7 +53,10 @@ page PastePage{..} =
 			    ppChans
 			    ppLangs
 			    (pcOriginal ppPaste)
-			    (pcLatestHints ppPaste)
+			    (if ppRevision then pcOriginal ppPaste
+			                   else pcLatest ppPaste)
+			    (if ppRevision then pcOriginalHints ppPaste
+			                   else pcLatestHints ppPaste)
                   viewAnnotations ppChans ppLangs ppPaste
   , pageName = "paste"
   }
@@ -185,7 +188,10 @@ viewAnnotations :: [Channel] -> [Language] -> PasteContext -> Markup
 viewAnnotations chans langs paste = do
   let pastes = pcOriginal paste : map pcOriginal (pcAnnotations paste)
   for_ (pcAnnotations paste) $ \ann ->
-    viewPaste [] pastes chans langs (pcOriginal ann) (pcOriginalHints ann)
+    viewPaste [] pastes chans langs
+              (pcOriginal ann)
+              (pcOriginal ann)
+              (pcOriginalHints ann)
 
 -- | View a paste's details and content.
 viewPaste
@@ -194,11 +200,12 @@ viewPaste
   -> [Channel]
   -> [Language]
   -> Paste           -- ^ Original paste (may not be the paste we'll show)
+  -> Paste           -- ^ The paste we'll actually show
   -> [Hint]          -- ^ Hints for the paste we'll actually show
   -> Markup
-viewPaste revisions annotations chans langs original hints = do
-  pasteDetails revisions annotations chans langs original
-  pasteContent revisions langs original
+viewPaste revisions annotations chans langs original latest hints = do
+  pasteDetails revisions annotations chans langs original latest
+  pasteContent langs latest
   viewHints hints
 
 -- | List the details of the page in a dark section.
@@ -208,16 +215,14 @@ pasteDetails
   -> [Channel]
   -> [Language]
   -> Paste           -- ^ Original paste
+  -> Paste           -- ^ Latest version
   -> Markup
-pasteDetails revisions annotations chans langs original =
+pasteDetails revisions annotations chans langs original latest =
   darkNoTitleSection $ do
-    let title = case revisions of
-                  (rev:_) -> pasteTitle rev
-                  _ -> pasteTitle original
     h2 $ a ! A.href (toValue ("#a" ++ show (pasteId original)))
            ! A.id (toValue ("a" ++ show (pasteId original)))
            ! A.name (toValue ("a" ++ show (pasteId original)))
-           $ toMarkup $ fromStrict title
+           $ toMarkup $ fromStrict (pasteTitle latest)
     pasteNav annotations original
     ul ! aClass "paste-specs" $ do
       detail "Paste" $ do
@@ -225,7 +230,7 @@ pasteDetails revisions annotations chans langs original =
 	" "
         linkToParent original
       detail "Author(s)" $ do
-        let authors | null revisions = map pasteAuthor [original]
+        let authors | null revisions = map pasteAuthor [latest]
 	    	    | otherwise      = map pasteAuthor revisions
         htmlCommasAnd $ flip map (nub authors) $ \author ->
 	  linkAuthor author
@@ -329,11 +334,8 @@ hrefURI' :: URI -> Attribute
 hrefURI' uri = A.href (toValue (show uri)) where
 
 -- | Show the paste content with highlighting.
-pasteContent :: [Paste] -> [Language] -> Paste -> Markup
-pasteContent revisions langs paste =
-  case revisions of
-    (rev:_) -> lightNoTitleSection $ highlightPaste langs rev
-    _ -> lightNoTitleSection $ highlightPaste langs paste
+pasteContent :: [Language] -> Paste -> Markup
+pasteContent langs paste = lightNoTitleSection $ highlightPaste langs paste
 
 -- | The href link to a paste.
 pasteLink :: ToMarkup html => Paste -> html -> Markup
