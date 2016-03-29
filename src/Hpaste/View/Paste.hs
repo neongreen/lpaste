@@ -22,6 +22,7 @@ import           Control.Applicative
 import           Control.Arrow               ((&&&))
 import           Control.Monad
 import           Data.ByteString.UTF8        (toString)
+import           Data.Foldable               (for_)
 import           Data.List                   (find,nub)
 import qualified Data.Map                    as M
 import           Data.Maybe
@@ -52,12 +53,7 @@ page PastePage{..} =
 			    ppChans
 			    ppLangs
 			    (pcOriginal ppPaste, pcLatestHints ppPaste)
-                  let annotations = map pcOriginal (pcAnnotations ppPaste)
-                      ahints = map pcOriginalHints (pcAnnotations ppPaste)
-                  viewAnnotations (pcOriginal ppPaste : annotations)
-                                  ppChans
-                                  ppLangs
-                                  (zip annotations ahints)
+                  viewAnnotations ppChans ppLangs ppPaste
   , pageName = "paste"
   }
 
@@ -184,9 +180,11 @@ getPasteId PasteFormlet{..} =
   return . PasteId
 
 -- | View the paste's annotations.
-viewAnnotations :: [Paste] -> [Channel] -> [Language] -> [(Paste,[Hint])] -> Markup
-viewAnnotations pastes chans langs annotations = do
-  mapM_ (viewPaste [] pastes chans langs) annotations
+viewAnnotations :: [Channel] -> [Language] -> PasteContext -> Markup
+viewAnnotations chans langs paste = do
+  let pastes = pcOriginal paste : map pcOriginal (pcAnnotations paste)
+  for_ (pcAnnotations paste) $ \ann ->
+    viewPaste [] pastes chans langs (pcOriginal ann, pcOriginalHints ann)
 
 -- | View a paste's details and content.
 viewPaste :: [Paste] -> [Paste] -> [Channel] -> [Language] -> (Paste,[Hint]) -> Markup
