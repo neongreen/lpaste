@@ -45,19 +45,23 @@ import           Text.Formlet
 
 -- | Render the page page.
 page :: PastePage -> Markup
-page PastePage{..} =
+page PastePage{..} = do
+  let paste = if not ppRevision
+                then ppPaste
+                else ppPaste { pcLatest        = pcOriginal ppPaste
+                             , pcLatestHints   = pcOriginalHints ppPaste
+                             , pcRevisions     = []
+                             , pcRevisionHints = [] }
   layoutPage $ Page {
-    pageTitle = pasteTitle (pcLatest ppPaste)
-  , pageBody = do viewPaste (if ppRevision then [] else pcRevisions ppPaste)
+    pageTitle = pasteTitle (pcLatest paste)
+  , pageBody = do viewPaste (pcRevisions paste)
     	       	  	    []
 			    ppChans
 			    ppLangs
-			    (pcOriginal ppPaste)
-			    (if ppRevision then pcOriginal ppPaste
-			                   else pcLatest ppPaste)
-			    (if ppRevision then pcOriginalHints ppPaste
-			                   else pcLatestHints ppPaste)
-                  viewAnnotations ppChans ppLangs ppPaste
+			    (pcOriginal paste)
+			    (pcLatest paste)
+			    (pcLatestHints paste)
+                  viewAnnotations ppChans ppLangs paste
   , pageName = "paste"
   }
 
