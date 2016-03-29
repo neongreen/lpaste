@@ -54,13 +54,7 @@ page PastePage{..} = do
                              , pcRevisionHints = [] }
   layoutPage $ Page {
     pageTitle = pasteTitle (pcLatest paste)
-  , pageBody = do viewPaste (pcRevisions paste)
-    	       	  	    []
-			    ppChans
-			    ppLangs
-			    (pcOriginal paste)
-			    (pcLatest paste)
-			    (pcLatestHints paste)
+  , pageBody = do viewPaste [] ppChans ppLangs paste
                   viewAnnotations ppChans ppLangs paste
   , pageName = "paste"
   }
@@ -192,37 +186,32 @@ viewAnnotations :: [Channel] -> [Language] -> PasteContext -> Markup
 viewAnnotations chans langs paste = do
   let pastes = pcOriginal paste : map pcOriginal (pcAnnotations paste)
   for_ (pcAnnotations paste) $ \ann ->
-    viewPaste (pcRevisions ann) pastes chans langs
-              (pcOriginal ann)
-              (pcLatest ann)
-              (pcLatestHints ann)
+    viewPaste pastes chans langs ann
 
 -- | View a paste's details and content.
 viewPaste
-  :: [Paste]         -- ^ Revisions
-  -> [Paste]         -- ^ Annotations
+  :: [Paste]         -- ^ Annotations
   -> [Channel]
   -> [Language]
-  -> Paste           -- ^ Original paste (may not be the paste we'll show)
-  -> Paste           -- ^ The paste we'll actually show
-  -> [Hint]          -- ^ Hints for the paste we'll actually show
+  -> PasteContext
   -> Markup
-viewPaste revisions annotations chans langs original latest hints = do
-  pasteDetails revisions annotations chans langs original latest
-  pasteContent langs latest
-  viewHints hints
+viewPaste annotations chans langs paste = do
+  pasteDetails annotations chans langs paste
+  pasteContent langs (pcLatest paste)
+  viewHints (pcLatestHints paste)
 
 -- | List the details of the page in a dark section.
 pasteDetails
-  :: [Paste]         -- ^ Revisions
-  -> [Paste]         -- ^ Annotations
+  :: [Paste]         -- ^ Annotations
   -> [Channel]
   -> [Language]
-  -> Paste           -- ^ Original paste
-  -> Paste           -- ^ Latest version
+  -> PasteContext
   -> Markup
-pasteDetails revisions annotations chans langs original latest =
+pasteDetails annotations chans langs paste =
   darkNoTitleSection $ do
+    let original  = pcOriginal paste
+        latest    = pcLatest paste
+        revisions = pcRevisions paste
     h2 $ a ! A.href (toValue ("#a" ++ show (pasteId original)))
            ! A.id (toValue ("a" ++ show (pasteId original)))
            ! A.name (toValue ("a" ++ show (pasteId original)))
