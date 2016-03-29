@@ -52,7 +52,8 @@ page PastePage{..} =
     	       	  	    []
 			    ppChans
 			    ppLangs
-			    (pcOriginal ppPaste, pcLatestHints ppPaste)
+			    (pcOriginal ppPaste)
+			    (pcLatestHints ppPaste)
                   viewAnnotations ppChans ppLangs ppPaste
   , pageName = "paste"
   }
@@ -184,43 +185,56 @@ viewAnnotations :: [Channel] -> [Language] -> PasteContext -> Markup
 viewAnnotations chans langs paste = do
   let pastes = pcOriginal paste : map pcOriginal (pcAnnotations paste)
   for_ (pcAnnotations paste) $ \ann ->
-    viewPaste [] pastes chans langs (pcOriginal ann, pcOriginalHints ann)
+    viewPaste [] pastes chans langs (pcOriginal ann) (pcOriginalHints ann)
 
 -- | View a paste's details and content.
-viewPaste :: [Paste] -> [Paste] -> [Channel] -> [Language] -> (Paste,[Hint]) -> Markup
-viewPaste revisions annotations chans langs (paste@Paste{..},hints) = do
-  pasteDetails revisions annotations chans langs paste
-  pasteContent revisions langs paste
+viewPaste
+  :: [Paste]         -- ^ Revisions
+  -> [Paste]         -- ^ Annotations
+  -> [Channel]
+  -> [Language]
+  -> Paste           -- ^ Original paste (may not be the paste we'll show)
+  -> [Hint]          -- ^ Hints for the paste we'll actually show
+  -> Markup
+viewPaste revisions annotations chans langs original hints = do
+  pasteDetails revisions annotations chans langs original
+  pasteContent revisions langs original
   viewHints hints
 
 -- | List the details of the page in a dark section.
-pasteDetails :: [Paste] -> [Paste] -> [Channel] -> [Language] -> Paste -> Markup
-pasteDetails revisions annotations chans langs paste =
+pasteDetails
+  :: [Paste]         -- ^ Revisions
+  -> [Paste]         -- ^ Annotations
+  -> [Channel]
+  -> [Language]
+  -> Paste           -- ^ Original paste
+  -> Markup
+pasteDetails revisions annotations chans langs original =
   darkNoTitleSection $ do
     let title = case revisions of
                   (rev:_) -> pasteTitle rev
-                  _ -> pasteTitle paste
-    h2 $ a ! A.href (toValue ("#a" ++ show (pasteId paste)))
-           ! A.id (toValue ("a" ++ show (pasteId paste)))
-           ! A.name (toValue ("a" ++ show (pasteId paste)))
+                  _ -> pasteTitle original
+    h2 $ a ! A.href (toValue ("#a" ++ show (pasteId original)))
+           ! A.id (toValue ("a" ++ show (pasteId original)))
+           ! A.name (toValue ("a" ++ show (pasteId original)))
            $ toMarkup $ fromStrict title
-    pasteNav annotations paste
+    pasteNav annotations original
     ul ! aClass "paste-specs" $ do
       detail "Paste" $ do
-        pasteLink paste $ "#" ++ show (pasteId paste)
+        pasteLink original $ "#" ++ show (pasteId original)
 	" "
-        linkToParent paste
+        linkToParent original
       detail "Author(s)" $ do
-        let authors | null revisions = map pasteAuthor [paste]
+        let authors | null revisions = map pasteAuthor [original]
 	    	    | otherwise      = map pasteAuthor revisions
         htmlCommasAnd $ flip map (nub authors) $ \author ->
 	  linkAuthor author
-      detail "Language" $ showLanguage langs (pasteLanguage paste)
-      detail "Channel" $ showChannel (Just paste) chans (pasteChannel paste)
-      detail "Created" $ showDateTime (pasteDate paste)
+      detail "Language" $ showLanguage langs (pasteLanguage original)
+      detail "Channel" $ showChannel (Just original) chans (pasteChannel original)
+      detail "Created" $ showDateTime (pasteDate original)
       unless (length revisions < 2) $ detail "Revisions" $ do
         br
-        ul !. "revisions" $ listRevisions paste revisions
+        ul !. "revisions" $ listRevisions original revisions
     clear
 
     where detail title content = do
@@ -239,7 +253,10 @@ linkToParent paste = do
     RevisionOf pid -> do "(a revision of "; pidLink pid; ")"
 
 -- | List the revisions of a paste.
-listRevisions :: Paste -> [Paste] -> Markup
+listRevisions
+  :: Paste      -- ^ Earliest version of the paste
+  -> [Paste]    -- ^ Revisions
+  -> Markup
 listRevisions _ [] = return ()
 listRevisions p [x] = revisionDetails p x
 listRevisions p (x:y:xs) = do
@@ -247,7 +264,10 @@ listRevisions p (x:y:xs) = do
   listRevisions p (y:xs)
 
 -- | List the details of a revision.
-revisionDetails :: Paste -> Paste -> Markup
+revisionDetails
+  :: Paste      -- ^ The previous version of the paste
+  -> Paste      -- ^ The revised version
+  -> Markup
 revisionDetails paste revision = li $ do
   toMarkup $ showDateTime (pasteDate revision)
   " "
@@ -263,7 +283,10 @@ revisionDetails paste revision = li $ do
   ")"
 
 -- | Individual paste navigation.
-pasteNav :: [Paste] -> Paste -> Markup
+pasteNav
+  :: [Paste]     -- ^ Annotations
+  -> Paste
+  -> Markup
 pasteNav pastes paste =
   H.div ! aClass "paste-nav" $ do
     diffLink
