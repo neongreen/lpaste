@@ -224,11 +224,9 @@ pasteDetails chans langs annotationInfo paste =
         pasteLink original $ "#" ++ show pid
 	" "
         linkToParent original
-      detail "Author(s)" $ do
-        let authors | null revisions = map pasteAuthor [latest]
-	    	    | otherwise      = map pasteAuthor revisions
-        htmlCommasAnd $ flip map (nub authors) $ \author ->
-	  linkAuthor author
+      let authors = nub (map pasteAuthor (original:revisions))
+      detail (if length authors > 1 then "Authors" else "Author") $
+        htmlCommasAnd $ map linkAuthor authors
       detail "Language" $ showLanguage langs (pasteLanguage latest)
       detail "Channel" $ showChannel (Just pid) chans (pasteChannel latest)
       detail "Created" $ showDateTime (pasteDate original)
