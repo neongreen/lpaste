@@ -101,13 +101,13 @@ showLanguage languages lid =
     where langs = map (languageId &&& languageTitle) languages
 
 -- | Show a channel.
-showChannel :: Maybe Paste -> [Channel] -> Maybe ChannelId -> Markup
-showChannel paste channels lid = do
+showChannel :: Maybe PasteId -> [Channel] -> Maybe ChannelId -> Markup
+showChannel pid channels lid = do
   toMarkup $ fromMaybe "-" chan
-  case (paste,chan) of
-    (Just paste,Just c) | c == "#haskell" -> do
+  case (pid,chan) of
+    (Just pid,Just c) | c == "#haskell" -> do
       " "
-      href ("http://ircbrowse.net/browse/haskell/?q=" ++ show (pasteId paste)) $
+      href ("http://ircbrowse.net/browse/haskell/?q=" ++ show pid) $
         ("Context in IRC logs" :: String)
     _ -> return ()
 

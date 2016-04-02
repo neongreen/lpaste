@@ -229,8 +229,8 @@ pasteDetails chans langs annotationInfo paste =
 	    	    | otherwise      = map pasteAuthor revisions
         htmlCommasAnd $ flip map (nub authors) $ \author ->
 	  linkAuthor author
-      detail "Language" $ showLanguage langs (pasteLanguage original)
-      detail "Channel" $ showChannel (Just original) chans (pasteChannel original)
+      detail "Language" $ showLanguage langs (pasteLanguage latest)
+      detail "Channel" $ showChannel (Just pid) chans (pasteChannel latest)
       detail "Created" $ showDateTime (pasteDate original)
       unless (length revisions <= 1) $ detail "Revisions" $ do
         br
