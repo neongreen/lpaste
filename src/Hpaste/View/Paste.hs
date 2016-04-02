@@ -232,9 +232,14 @@ pasteDetails chans langs annotationInfo paste =
       detail "Language" $ showLanguage langs (pasteLanguage original)
       detail "Channel" $ showChannel (Just original) chans (pasteChannel original)
       detail "Created" $ showDateTime (pasteDate original)
-      unless (length revisions < 2) $ detail "Revisions" $ do
+      unless (length revisions <= 1) $ detail "Revisions" $ do
         br
-        ul !. "revisions" $ listRevisions original revisions
+        ul !. "revisions" $
+          -- E.g. if the revisions go like [r2,r1,orig], it would call
+          -- revisionDetails for (r1 r2), (orig r1), and (orig orig)
+          zipWithM_ revisionDetails
+            (tail revisions ++ [pcOriginal paste])
+            revisions
     clear
 
     where pid = pasteId (pcOriginal paste)
@@ -252,17 +257,6 @@ linkToParent paste = do
     NormalPaste -> return ()
     AnnotationOf pid -> do "(an annotation of "; pidLink pid; ")"
     RevisionOf pid -> do "(a revision of "; pidLink pid; ")"
-
--- | List the revisions of a paste.
-listRevisions
-  :: Paste      -- ^ Earliest version of the paste
-  -> [Paste]    -- ^ Revisions
-  -> Markup
-listRevisions _ [] = return ()
-listRevisions p [x] = revisionDetails p x
-listRevisions p (x:y:xs) = do
-  revisionDetails y x
-  listRevisions p (y:xs)
 
 -- | List the details of a revision.
 revisionDetails
