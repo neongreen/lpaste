@@ -1,6 +1,5 @@
 {-# OPTIONS -Wall -fno-warn-name-shadowing #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 
 -- | Edit paste view.
 
@@ -15,11 +14,12 @@ import Hpaste.View.Layout
 import Data.Monoid.Operator ((++))
 import Prelude              hiding ((++))
 import Text.Blaze.Html5     as H hiding (map)
-import Data.Text.Lazy
+import Data.Text
+import Data.Text.Lazy (fromStrict)
 
 -- | Render the create edit paste page.
-page :: Paste -> Html -> Html
-page Paste{..} form =
+page :: Text -> Html -> Html
+page pasteTitle form =
   layoutPage $ Page {
     pageTitle = "Edit: " ++ pasteTitle
   , pageBody = lightSection ("Edit: " ++ fromStrict pasteTitle) form
