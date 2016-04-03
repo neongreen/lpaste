@@ -27,6 +27,7 @@ import Control.Monad           ((>=>))
 import Control.Monad.IO
 import Data.ByteString         (ByteString)
 import Data.ByteString.UTF8    (toString)
+import Data.List               (nub)
 import Data.Maybe
 import Data.Monoid.Operator    ((++))
 import Data.String             (fromString)
@@ -89,7 +90,17 @@ pasteForm channels languages defChan annotatePaste editPaste = do
   params <- getParams
   submittedPrivate <- isJust <$> getParam "private"
   submittedPublic <- isJust <$> getParam "public"
-  mbLatest <- model $ traverse getLatestVersion (annotatePaste <|> editPaste)
+  let mbOriginal = annotatePaste <|> editPaste
+  mbLatest <- model $ traverse getLatestVersion mbOriginal
+  -- If we're editing an annotation, we want to know the “parent paste”
+  -- (e.g. if paste A has been annotated with B, and editPaste = B, then
+  -- parentPasteId = A). This is because when when we're editing an
+  -- annotation, after editing we want to redirect to the original paste, not
+  -- the annotation.
+  let parentPasteId = mbOriginal >>= \p ->
+                        case pasteType p of
+                          AnnotationOf x -> Just x
+                          _ -> Nothing
   let formlet = PasteFormlet {
           pfSubmitted = submittedPrivate || submittedPublic
         , pfErrors    = []
@@ -112,12 +123,14 @@ pasteForm channels languages defChan annotatePaste editPaste = do
     Just paste -> do
       spamrating <- model $ spamRating paste
       if spamrating >= spamMaxLevel
-      	 then goSpamBlocked
-	 else do
-	    resetCache Key.Home
-	    maybe (return ()) (resetCache . Key.Paste) $ pasteSubmitId paste
-	    pid <- model $ createPaste languages channels paste spamrating submittedPublic
-	    maybe (return ()) redirectToPaste pid
+         then goSpamBlocked
+         else do
+           resetCache Key.Home
+           mapM_ (resetCache . Key.Paste) $
+             nub $ catMaybes [pasteSubmitId paste, parentPasteId]
+           pid <- model $ createPaste languages channels paste
+                                      spamrating submittedPublic
+           mapM_ redirectToPaste (parentPasteId <|> pid)
   return html
 
 -- | Go back to the home page with a spam indication.
