@@ -50,17 +50,17 @@ browse now pn channels languages ps mauthor = do
       pastes ps
     pagination pn { pnPn = (pnPn pn) { pnShowDesc = False } }
 
-    where pastes = mapM_ $ \(paste, latest) -> tr $ do
-                     td $ pasteLink paste (pasteTitle latest)
+    where pastes = mapM_ $ \(original, latest) -> tr $ do
+                     td $ pasteLink original (pasteTitle latest)
                      unless (isJust mauthor) $
                        td $ do
-			 let author = T.unpack (pasteAuthor paste)
+			 let author = T.unpack (pasteAuthor original)
 			 if True -- validNick author
 			    then a ! hrefURI (authorUri author) $ toHtml author
 			    else toHtml author
-                     td $ ago (pasteDate paste) now
-                     td $ showLanguage languages (pasteLanguage paste)
-                     td $ showChannel Nothing channels (pasteChannel paste)
+                     td $ ago (pasteDate original) now
+                     td $ showLanguage languages (pasteLanguage latest)
+                     td $ showChannel Nothing channels (pasteChannel latest)
           authorUri author = updateUrlParam "author" author
 	  	    	   $ updateUrlParam "pastes_page"   "0"
 			   $ pnURI pn
