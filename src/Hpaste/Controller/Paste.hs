@@ -108,8 +108,8 @@ pasteForm channels languages defChan annotatePaste editPaste = do
         , pfChannels  = channels
         , pfLanguages = languages
         , pfDefChan   = defChan
-        , pfAnnotatePaste = annotatePaste
-        , pfEditPaste = editPaste
+        , pfAnnotatePaste = (,) <$> annotatePaste <*> mbLatest
+        , pfEditPaste     = (,) <$> editPaste     <*> mbLatest
 	, pfContent = pastePaste <$> mbLatest
         }
       (getValue,_) = pasteFormlet formlet

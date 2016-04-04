@@ -75,13 +75,13 @@ pasteFormlet pf@PasteFormlet{..} =
   in (pasteSubmit pf,form)
 
   where action = case pfAnnotatePaste of
-                   Just Paste{..} -> "/annotate/" ++ show (fromMaybe pasteId pasteParent)
+                   Just (Paste{..}, _) -> "/annotate/" ++ show (fromMaybe pasteId pasteParent)
                        where pasteParent = case pasteType of
                                AnnotationOf pid -> Just pid
                                _ -> Nothing
                    Nothing        ->
                      case pfEditPaste of
-		       Just Paste{..} -> "/edit/" ++ show pasteId
+		       Just (Paste{..}, _) -> "/edit/" ++ show pasteId
 		       Nothing -> "/new"
 
 
@@ -99,9 +99,9 @@ pasteSubmit pf@PasteFormlet{..} =
   PasteSubmit
     <$> pure (getPasteId pf)
     <*> pure (case pfAnnotatePaste of
-    	       Just pid -> AnnotationOf (pasteId pid)
+    	       Just (p, _) -> AnnotationOf (pasteId p)
 	       _ -> case pfEditPaste of
-	         Just pid -> RevisionOf (pasteId pid)
+	         Just (p, _) -> RevisionOf (pasteId p)
 		 _ -> NormalPaste)
     <*> defaulting "No title" (textPlaceholder "title" "Title" (annotateTitle <|> editTitle))
     <*> defaulting "Anonymous Coward" (textPlaceholder "author" "Author" Nothing)
@@ -133,13 +133,13 @@ pasteSubmit pf@PasteFormlet{..} =
 	  makeChan "#emacs" = "elisp"
 	  makeChan _ = ""
 
-          annotateTitle = ((++ " (annotation)") . pasteTitle) <$> pfAnnotatePaste
-          annotateLanguage = join (fmap pasteLanguage pfAnnotatePaste) >>= findLangById
-          annotateChan = join (fmap pasteChannel pfAnnotatePaste) >>= findChanById
+          annotateTitle = ((++ " (annotation)") . pasteTitle . snd) <$> pfAnnotatePaste
+          annotateLanguage = pfAnnotatePaste >>= pasteLanguage.snd >>= findLangById
+          annotateChan = pfAnnotatePaste >>= pasteChannel.snd >>= findChanById
 
           editTitle = Nothing
-          editLanguage = join (fmap pasteLanguage pfEditPaste) >>= findLangById
-          editChan = join (fmap pasteChannel pfEditPaste) >>= findChanById
+          editLanguage = pfEditPaste >>= pasteLanguage.snd >>= findLangById
+          editChan = pfEditPaste >>= pasteChannel.snd >>= findChanById
 
           findChanById id = channelName <$> find ((==id).channelId) pfChannels
           findLangById id = languageName <$> find ((==id).languageId) pfLanguages
