@@ -137,7 +137,7 @@ pasteSubmit pf@PasteFormlet{..} =
           annotateLanguage = pfAnnotatePaste >>= pasteLanguage.snd >>= findLangById
           annotateChan = pfAnnotatePaste >>= pasteChannel.snd >>= findChanById
 
-          editTitle = Nothing
+          editTitle = pasteTitle.snd <$> pfEditPaste
           editLanguage = pfEditPaste >>= pasteLanguage.snd >>= findLangById
           editChan = pfEditPaste >>= pasteChannel.snd >>= findChanById
 
